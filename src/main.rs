@@ -1,10 +1,13 @@
 //! A device to device file transfer program written in Rust
 
 extern crate clap;
+extern crate colored;
 extern crate pnet;
 
 use clap::{crate_authors, crate_version, App, Arg};
+use colored::Colorize;
 use pnet::datalink;
+use qrcode::QrCode;
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
@@ -35,6 +38,16 @@ impl<T> ChoiceError<T> {
     fn new(low: T, high: T) -> ChoiceError<T> {
         ChoiceError { low, high }
     }
+}
+
+fn create_qr_code(data: String) -> String {
+    QrCode::new(data)
+        .unwrap()
+        .render()
+        .light_color(" ")
+        .dark_color("█")
+        .module_dimensions(2, 1)
+        .build()
 }
 
 fn get_network_interfaces() -> HashMap<String, datalink::NetworkInterface> {
@@ -158,13 +171,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:#?}", network_interface);
     }
 
+    for split in create_qr_code(String::from("test string")).split('\n') {
+        println!("{}", split.black().on_white());
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test() {
         assert_eq!(1 + 1, 2);
+    }
+
+    #[test]
+    fn test_create_qr_code() {
+        let test_code = "                                                          \n                                                          \n                                                          \n                                                          \n        ██████████████      ██      ██████████████        \n        ██          ██  ██  ██  ██  ██          ██        \n        ██  ██████  ██        ██    ██  ██████  ██        \n        ██  ██████  ██    ████      ██  ██████  ██        \n        ██  ██████  ██  ████  ████  ██  ██████  ██        \n        ██          ██    ██  ██    ██          ██        \n        ██████████████  ██  ██  ██  ██████████████        \n                          ████                            \n        ██  ██  ██  ██      ██  ██      ██    ██          \n            ████████  ██    ████  ██  ██      ████        \n        ██  ██      ████████████  ██████  ████████        \n              ██████    ████████████  ████    ██          \n        ██  ██  ██  ██    ██████  ██████  ██  ████        \n                        ██          ██    ██    ██        \n        ██████████████    ██    ██      ████  ████        \n        ██          ██      ██      ██        ██          \n        ██  ██████  ██  ██████  ██  ██  ████  ████        \n        ██  ██████  ██      ████  ██  ██      ██          \n        ██  ██████  ██  ████████  ██████    ██  ██        \n        ██          ██      ████████  ██████  ██          \n        ██████████████  ████████  ██████    ██████        \n                                                          \n                                                          \n                                                          \n                                                          ";
+        assert_eq!(test_code, create_qr_code(String::from("test")));
     }
 }
