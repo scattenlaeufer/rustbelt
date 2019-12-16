@@ -36,7 +36,7 @@ jobs:
     name: Run tests
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-latest]
         toolchain: [stable, beta, nightly]
     runs-on: ${{ matrix.platform }}
     steps:
