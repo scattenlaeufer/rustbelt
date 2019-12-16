@@ -1,11 +1,63 @@
 //! A device to device file transfer program written in Rust
 
 extern crate clap;
+extern crate pnet;
 
 use clap::{crate_authors, crate_version, App, Arg};
+use pnet::datalink;
+use std::collections::HashMap;
+use std::fmt;
+use std::io;
 use std::path::Path;
 
-fn main() {
+#[derive(Debug)]
+struct ChoiceError<T> {
+    low: T,
+    high: T,
+}
+
+impl<T> std::error::Error for ChoiceError<T> where T: fmt::Debug + fmt::Display {}
+
+impl<T> fmt::Display for ChoiceError<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Not a valid choice. Must be between {} and {}",
+            self.low, self.high
+        )
+    }
+}
+
+impl<T> ChoiceError<T> {
+    fn new(low: T, high: T) -> ChoiceError<T> {
+        ChoiceError { low, high }
+    }
+}
+
+fn get_network_interfaces() -> HashMap<String, datalink::NetworkInterface> {
+    let mut interface_map = HashMap::<String, datalink::NetworkInterface>::new();
+    for interface in datalink::interfaces() {
+        if !interface.ips.is_empty() {
+            interface_map.insert(String::from(&interface.name), interface);
+        }
+    }
+    interface_map
+}
+
+fn get_network_devices() -> Vec<datalink::NetworkInterface> {
+    let mut device_vec = Vec::<datalink::NetworkInterface>::new();
+    for device in datalink::interfaces() {
+        if !device.ips.is_empty() {
+            device_vec.push(device);
+        }
+    }
+    device_vec
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = App::new("rustbelt")
         .author(crate_authors!())
         .version(crate_version!())
@@ -35,10 +87,18 @@ fn main() {
                 .help("Produce more verbose output. Multiple usage for more verbose output"),
         )
         .arg(
-            Arg::with_name("network device")
-                .short("n")
-                .long("device")
-                .value_name("NETWORK_DEVICE")
+            Arg::with_name("network interface")
+                .short("i")
+                .long("interface")
+                .value_name("NETWORK_INTERFACE")
+                .validator(|d: String| {
+                    for device in get_network_devices() {
+                        if d == device.name {
+                            return Ok(());
+                        }
+                    }
+                    Err(String::from("Device not found!"))
+                })
                 .help("The network device over which the web server will run"),
         )
         .arg(
@@ -66,6 +126,39 @@ fn main() {
     if matches.occurrences_of("verbose") >= 1 {
         println!("Arguments: {:?}", matches);
     }
+
+    let interface_map = get_network_interfaces();
+    let network_interface = if matches.occurrences_of("network interface") == 1 {
+        match interface_map.get(matches.value_of("network interface").unwrap()) {
+            Some(i) => i,
+            None => panic!("Network interface not found!"),
+        }
+    } else {
+        println!("Found network interfaces, choose one:");
+        let mut interface_names = interface_map.keys().cloned().collect::<Vec<String>>();
+        interface_names.sort();
+        for (index, device_name) in interface_names.iter().enumerate() {
+            println!("{} - {}", index, device_name);
+        }
+        let mut interface_num_str = String::new();
+        io::stdin().read_line(&mut interface_num_str).unwrap();
+
+        let interface_num = match interface_num_str.trim().parse::<usize>() {
+            Ok(n) => n,
+            Err(e) => return Err(Box::new(e)),
+        };
+
+        if interface_num >= interface_map.len() {
+            return Err(Box::new(ChoiceError::new(0, interface_map.len() - 1)));
+        }
+        &interface_map[&interface_names[interface_num]]
+    };
+
+    if matches.occurrences_of("verbose") >= 1 {
+        println!("{:#?}", network_interface);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
