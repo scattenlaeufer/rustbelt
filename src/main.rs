@@ -60,16 +60,6 @@ fn get_network_interfaces() -> HashMap<String, datalink::NetworkInterface> {
     interface_map
 }
 
-fn get_network_devices() -> Vec<datalink::NetworkInterface> {
-    let mut device_vec = Vec::<datalink::NetworkInterface>::new();
-    for device in datalink::interfaces() {
-        if !device.ips.is_empty() {
-            device_vec.push(device);
-        }
-    }
-    device_vec
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = App::new("rustbelt")
         .author(crate_authors!())
@@ -105,8 +95,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("interface")
                 .value_name("NETWORK_INTERFACE")
                 .validator(|d: String| {
-                    for device in get_network_devices() {
-                        if d == device.name {
+                    for (name, _) in get_network_interfaces() {
+                        if d == name {
                             return Ok(());
                         }
                     }
