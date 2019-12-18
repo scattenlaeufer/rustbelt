@@ -23,6 +23,13 @@ async fn hello(_: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(Response::new(Body::from("Hello World!")))
 }
 
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install CTRL+C signal handler");
+    println!("Shutting down server");
+}
+
 #[tokio::main]
 async fn run_http_server(
     socket: std::net::SocketAddr,
@@ -31,7 +38,11 @@ async fn run_http_server(
 
     let server = Server::bind(&socket).serve(make_svc);
 
-    server.await?;
+    let graceful = server.with_graceful_shutdown(shutdown_signal());
+
+    if let Err(e) = graceful.await {
+        eprintln!("server error: {}", e);
+    }
 
     Ok(())
 }
