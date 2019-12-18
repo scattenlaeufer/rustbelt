@@ -2,6 +2,7 @@
 
 extern crate clap;
 extern crate colored;
+extern crate ipnetwork;
 extern crate pnet;
 
 use clap::{crate_authors, crate_version, App, Arg};
@@ -12,6 +13,28 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::path::Path;
+
+use std::convert::Infallible;
+
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
+
+async fn hello(_: Request<Body>) -> Result<Response<Body>, Infallible> {
+    Ok(Response::new(Body::from("Hello World!")))
+}
+
+#[tokio::main]
+async fn run_http_server(
+    socket: std::net::SocketAddr,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(hello)) });
+
+    let server = Server::bind(&socket).serve(make_svc);
+
+    server.await?;
+
+    Ok(())
+}
 
 #[derive(Debug)]
 struct ChoiceError<T> {
@@ -58,6 +81,29 @@ fn get_network_interfaces() -> HashMap<String, datalink::NetworkInterface> {
         }
     }
     interface_map
+}
+
+fn choose_number(
+    message: String,
+    choices: Vec<String>,
+) -> Result<(usize, String), Box<dyn std::error::Error>> {
+    println!("{}", message);
+    for (index, choice) in choices.iter().enumerate() {
+        println!("{} - {}", index, choice);
+    }
+    let mut choice_num_str = String::new();
+    io::stdin().read_line(&mut choice_num_str).unwrap();
+
+    let choice_num = match choice_num_str.trim().parse::<usize>() {
+        Ok(n) => n,
+        Err(e) => return Err(Box::new(e)),
+    };
+
+    if choice_num >= choices.len() {
+        Err(Box::new(ChoiceError::new(0, choices.len() - 1)))
+    } else {
+        Ok((choice_num, choices[choice_num].clone()))
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -161,9 +207,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:#?}", network_interface);
     }
 
-    for split in create_qr_code(String::from("test string")).split('\n') {
+    let (ipaddr_count, ipaddr_string) = choose_number(
+        String::from("Choose an IP address:"),
+        network_interface
+            .ips
+            .iter()
+            .map(|ip| match ip {
+                ipnetwork::IpNetwork::V4(ipv4) => format!(
+                    "{}.{}.{}.{}",
+                    ipv4.ip().octets()[0],
+                    ipv4.ip().octets()[1],
+                    ipv4.ip().octets()[2],
+                    ipv4.ip().octets()[3]
+                ),
+                ipnetwork::IpNetwork::V6(ipv6) => format!(
+                    "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
+                    ipv6.ip().segments()[0],
+                    ipv6.ip().segments()[1],
+                    ipv6.ip().segments()[2],
+                    ipv6.ip().segments()[3],
+                    ipv6.ip().segments()[4],
+                    ipv6.ip().segments()[5],
+                    ipv6.ip().segments()[6],
+                    ipv6.ip().segments()[7]
+                ),
+            })
+            .collect(),
+    )?;
+
+    let (url, socket) = match network_interface.ips[ipaddr_count] {
+        ipnetwork::IpNetwork::V4(v4) => (
+            format!("http://{}:{}", ipaddr_string, 3000),
+            std::net::SocketAddr::V4(std::net::SocketAddrV4::new(v4.ip(), 3000)),
+        ),
+        ipnetwork::IpNetwork::V6(v6) => (
+            format!("http://[{}]:{}", ipaddr_string, 3000),
+            std::net::SocketAddr::V6(std::net::SocketAddrV6::new(v6.ip(), 3000, 0, 0)),
+        ),
+    };
+    println!("Listening on {}", url);
+
+    for split in create_qr_code(url).split('\n') {
         println!("{}", split.black().on_white());
     }
+
+    match run_http_server(socket) {
+        Ok(_) => (),
+        Err(e) => return Err(e),
+    };
 
     Ok(())
 }
