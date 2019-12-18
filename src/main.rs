@@ -162,8 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short("p")
                 .long("port")
                 .value_name("PORT")
-                // TODO This should be changed to 443 once we introduce encryption
-                .default_value("80")
+                .default_value("3000")
                 .validator(|p: String| match &p.parse::<u16>() {
                     Ok(_) => Ok(()),
                     Err(_) => Err(String::from("Must be a integer between 0 and 65536")),
@@ -237,12 +236,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (url, socket) = match network_interface.ips[ipaddr_count] {
         ipnetwork::IpNetwork::V4(v4) => (
-            format!("http://{}:{}", ipaddr_string, 3000),
-            std::net::SocketAddr::V4(std::net::SocketAddrV4::new(v4.ip(), 3000)),
+            format!(
+                "http://{}:{}",
+                ipaddr_string,
+                matches.value_of("port").unwrap().parse::<u16>()?
+            ),
+            std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
+                v4.ip(),
+                matches.value_of("port").unwrap().parse::<u16>()?,
+            )),
         ),
         ipnetwork::IpNetwork::V6(v6) => (
-            format!("http://[{}]:{}", ipaddr_string, 3000),
-            std::net::SocketAddr::V6(std::net::SocketAddrV6::new(v6.ip(), 3000, 0, 0)),
+            format!(
+                "http://[{}]:{}",
+                ipaddr_string,
+                matches.value_of("port").unwrap().parse::<u16>()?
+            ),
+            std::net::SocketAddr::V6(std::net::SocketAddrV6::new(
+                v6.ip(),
+                matches.value_of("port").unwrap().parse::<u16>()?,
+                0,
+                0,
+            )),
         ),
     };
     println!("Listening on {}", url);
