@@ -196,20 +196,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Found network interfaces, choose one:");
         let mut interface_names = interface_map.keys().cloned().collect::<Vec<String>>();
         interface_names.sort();
-        for (index, device_name) in interface_names.iter().enumerate() {
-            println!("{} - {}", index, device_name);
-        }
-        let mut interface_num_str = String::new();
-        io::stdin().read_line(&mut interface_num_str).unwrap();
+        let (interface_num, _) = choose_number(
+            String::from("Found network interfaces, choose one:"),
+            interface_names.clone(),
+        )?;
 
-        let interface_num = match interface_num_str.trim().parse::<usize>() {
-            Ok(n) => n,
-            Err(e) => return Err(Box::new(e)),
-        };
-
-        if interface_num >= interface_map.len() {
-            return Err(Box::new(ChoiceError::new(0, interface_map.len() - 1)));
-        }
         &interface_map[&interface_names[interface_num]]
     };
 
