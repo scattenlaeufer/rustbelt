@@ -241,6 +241,29 @@ pub fn run_rustbelt(matches: &clap::ArgMatches) -> Result<(), Box<dyn error::Err
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_url_creation_v4(a: u8, b: u8, c: u8, d: u8) {
+            let ip_string = format!("{}.{}.{}.{}", a, b, c, d);
+            let url = match create_url(IpString::V4(ip_string.clone()), 0) {
+                Ok(s) => s,
+                Err(_) => panic!("failed for {}", ip_string),
+            };
+            prop_assert_eq!(format!("http://{}:0", ip_string), url);
+        }
+
+        #[test]
+        fn test_url_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) {
+            let ip_string = format!("{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}", a, b, c, d, e, f, g, h);
+            let url = match create_url(IpString::V6(ip_string.clone()), 0) {
+                Ok(s) => s,
+                Err(_) => panic!("failed for {}", ip_string),
+            };
+            prop_assert_eq!(format!("http://[{}]:0", ip_string), url);
+        }
+    }
 
     #[test]
     fn test_create_qr_code() {
