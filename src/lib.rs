@@ -245,6 +245,26 @@ mod tests {
 
     proptest! {
         #[test]
+        fn test_socket_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
+            let ip_addr = net::Ipv4Addr::new(a, b, c, d);
+            let socket = match create_socket(ipnetwork::IpNetwork::V4(ipnetwork::Ipv4Network::new(ip_addr, 24)?), p) {
+                Ok(s) => s,
+                Err(_) => panic!("Socket creation failed!"),
+            };
+            prop_assert_eq!(socket, net::SocketAddr::V4(net::SocketAddrV4::new(ip_addr, p)));
+        }
+
+        #[test]
+        fn test_socket_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16, p: u16) {
+            let ip_addr = net::Ipv6Addr::new(a, b, c, d, e, f, g, h);
+            let socket = match create_socket(ipnetwork::IpNetwork::V6(ipnetwork::Ipv6Network::new(ip_addr, 128)?), p) {
+                Ok(s) => s,
+                Err(_) => panic!("Socket creation failed!"),
+            };
+            prop_assert_eq!(socket, net::SocketAddr::V6(net::SocketAddrV6::new(ip_addr, p, 0, 0)));
+        }
+
+        #[test]
         fn test_url_creation_v4(a: u8, b: u8, c: u8, d: u8) {
             let ip_string = format!("{}.{}.{}.{}", a, b, c, d);
             let url = match create_url(IpString::V4(ip_string.clone()), 0) {
