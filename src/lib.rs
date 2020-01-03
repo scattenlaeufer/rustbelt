@@ -37,6 +37,29 @@ impl<T> ChoiceError<T> {
     }
 }
 
+#[derive(Debug)]
+struct NetworkInterfaceExistanceError {
+    interface: String,
+}
+
+impl error::Error for NetworkInterfaceExistanceError {}
+
+impl fmt::Display for NetworkInterfaceExistanceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "The given network interface doesn't exist: {}",
+            self.interface
+        )
+    }
+}
+
+impl NetworkInterfaceExistanceError {
+    fn new(interface: String) -> NetworkInterfaceExistanceError {
+        NetworkInterfaceExistanceError { interface }
+    }
+}
+
 enum IpString {
     V4(String),
     V6(String),
@@ -143,7 +166,11 @@ fn get_network_socket(
     let network_interface = if matches.occurrences_of("network interface") == 1 {
         match interface_map.get(matches.value_of("network interface").unwrap()) {
             Some(i) => i,
-            None => panic!("Network interface not found!"),
+            None => {
+                return Err(Box::new(NetworkInterfaceExistanceError::new(
+                    matches.value_of("network interface").unwrap().to_string(),
+                )))
+            }
         }
     } else {
         println!("Found network interfaces, choose one:");
@@ -191,36 +218,29 @@ fn get_network_socket(
     let socket = create_socket(
         network_interface.ips[ipaddr_count],
         matches.value_of("port").unwrap().parse::<u16>()?,
-    )?;
+    );
     let url = create_url(
         ipaddr_string,
         matches.value_of("port").unwrap().parse::<u16>()?,
-    )?;
+    );
     Ok((url, socket))
 }
 
-fn create_socket(
-    ip: ipnetwork::IpNetwork,
-    port: u16,
-) -> Result<net::SocketAddr, Box<dyn error::Error>> {
+fn create_socket(ip: ipnetwork::IpNetwork, port: u16) -> net::SocketAddr {
     match ip {
-        ipnetwork::IpNetwork::V4(v4) => Ok(std::net::SocketAddr::V4(std::net::SocketAddrV4::new(
-            v4.ip(),
-            port,
-        ))),
-        ipnetwork::IpNetwork::V6(v6) => Ok(std::net::SocketAddr::V6(std::net::SocketAddrV6::new(
-            v6.ip(),
-            port,
-            0,
-            0,
-        ))),
+        ipnetwork::IpNetwork::V4(v4) => {
+            std::net::SocketAddr::V4(std::net::SocketAddrV4::new(v4.ip(), port))
+        }
+        ipnetwork::IpNetwork::V6(v6) => {
+            std::net::SocketAddr::V6(std::net::SocketAddrV6::new(v6.ip(), port, 0, 0))
+        }
     }
 }
 
-fn create_url(ip: IpString, port: u16) -> Result<String, Box<dyn error::Error>> {
+fn create_url(ip: IpString, port: u16) -> String {
     match ip {
-        IpString::V4(v4) => Ok(format!("http://{}:{}", v4, port)),
-        IpString::V6(v6) => Ok(format!("http://[{}]:{}", v6, port)),
+        IpString::V4(v4) => format!("http://{}:{}", v4, port),
+        IpString::V6(v6) => format!("http://[{}]:{}", v6, port),
     }
 }
 
@@ -247,40 +267,28 @@ mod tests {
         #[test]
         fn test_socket_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
             let ip_addr = net::Ipv4Addr::new(a, b, c, d);
-            let socket = match create_socket(ipnetwork::IpNetwork::V4(ipnetwork::Ipv4Network::new(ip_addr, 32)?), p) {
-                Ok(s) => s,
-                Err(_) => panic!("Socket creation failed!"),
-            };
+            let socket = create_socket(ipnetwork::IpNetwork::V4(ipnetwork::Ipv4Network::new(ip_addr, 32)?), p);
             prop_assert_eq!(socket, net::SocketAddr::V4(net::SocketAddrV4::new(ip_addr, p)));
         }
 
         #[test]
         fn test_socket_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16, p: u16) {
             let ip_addr = net::Ipv6Addr::new(a, b, c, d, e, f, g, h);
-            let socket = match create_socket(ipnetwork::IpNetwork::V6(ipnetwork::Ipv6Network::new(ip_addr, 128)?), p) {
-                Ok(s) => s,
-                Err(_) => panic!("Socket creation failed!"),
-            };
+            let socket = create_socket(ipnetwork::IpNetwork::V6(ipnetwork::Ipv6Network::new(ip_addr, 128)?), p);
             prop_assert_eq!(socket, net::SocketAddr::V6(net::SocketAddrV6::new(ip_addr, p, 0, 0)));
         }
 
         #[test]
         fn test_url_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
             let ip_string = format!("{}.{}.{}.{}", a, b, c, d);
-            let url = match create_url(IpString::V4(ip_string.clone()), p) {
-                Ok(s) => s,
-                Err(_) => panic!("failed for {}", ip_string),
-            };
+            let url = create_url(IpString::V4(ip_string.clone()), p);
             prop_assert_eq!(format!("http://{}:{}", ip_string, p), url);
         }
 
         #[test]
         fn test_url_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16, p: u16) {
             let ip_string = format!("{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}", a, b, c, d, e, f, g, h);
-            let url = match create_url(IpString::V6(ip_string.clone()), p) {
-                Ok(s) => s,
-                Err(_) => panic!("failed for {}", ip_string),
-            };
+            let url = create_url(IpString::V6(ip_string.clone()), p);
             prop_assert_eq!(format!("http://[{}]:{}", ip_string, p), url);
         }
     }
