@@ -247,7 +247,7 @@ mod tests {
         #[test]
         fn test_socket_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
             let ip_addr = net::Ipv4Addr::new(a, b, c, d);
-            let socket = match create_socket(ipnetwork::IpNetwork::V4(ipnetwork::Ipv4Network::new(ip_addr, 24)?), p) {
+            let socket = match create_socket(ipnetwork::IpNetwork::V4(ipnetwork::Ipv4Network::new(ip_addr, 32)?), p) {
                 Ok(s) => s,
                 Err(_) => panic!("Socket creation failed!"),
             };
@@ -265,23 +265,23 @@ mod tests {
         }
 
         #[test]
-        fn test_url_creation_v4(a: u8, b: u8, c: u8, d: u8) {
+        fn test_url_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
             let ip_string = format!("{}.{}.{}.{}", a, b, c, d);
-            let url = match create_url(IpString::V4(ip_string.clone()), 0) {
+            let url = match create_url(IpString::V4(ip_string.clone()), p) {
                 Ok(s) => s,
                 Err(_) => panic!("failed for {}", ip_string),
             };
-            prop_assert_eq!(format!("http://{}:0", ip_string), url);
+            prop_assert_eq!(format!("http://{}:{}", ip_string, p), url);
         }
 
         #[test]
-        fn test_url_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) {
+        fn test_url_creation_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16, p: u16) {
             let ip_string = format!("{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}", a, b, c, d, e, f, g, h);
-            let url = match create_url(IpString::V6(ip_string.clone()), 0) {
+            let url = match create_url(IpString::V6(ip_string.clone()), p) {
                 Ok(s) => s,
                 Err(_) => panic!("failed for {}", ip_string),
             };
-            prop_assert_eq!(format!("http://[{}]:0", ip_string), url);
+            prop_assert_eq!(format!("http://[{}]:{}", ip_string, p), url);
         }
     }
 
