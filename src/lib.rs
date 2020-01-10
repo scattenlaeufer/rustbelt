@@ -75,18 +75,21 @@ pub fn get_network_interfaces() -> HashMap<String, datalink::NetworkInterface> {
     interface_map
 }
 
-fn choose_number(
-    message: String,
-    choices: Vec<String>,
-) -> Result<(usize, String), Box<dyn std::error::Error>> {
-    println!("{}", message);
-    for (index, choice) in choices.iter().enumerate() {
-        println!("{} - {}", index, choice);
-    }
-    let mut choice_num_str = String::new();
-    io::stdin().read_line(&mut choice_num_str).unwrap();
+fn create_qr_code(data: String) -> String {
+    QrCode::new(data)
+        .unwrap()
+        .render()
+        .light_color(" ")
+        .dark_color("█")
+        .module_dimensions(2, 1)
+        .build()
+}
 
-    let choice_num = match choice_num_str.trim().parse::<usize>() {
+fn select_item(
+    choice: String,
+    choices: &[String],
+) -> Result<(usize, String), Box<dyn error::Error>> {
+    let choice_num = match choice.trim().parse::<usize>() {
         Ok(n) => n,
         Err(e) => return Err(Box::new(e)),
     };
@@ -98,14 +101,18 @@ fn choose_number(
     }
 }
 
-fn create_qr_code(data: String) -> String {
-    QrCode::new(data)
-        .unwrap()
-        .render()
-        .light_color(" ")
-        .dark_color("█")
-        .module_dimensions(2, 1)
-        .build()
+fn choose_number(
+    message: String,
+    choices: Vec<String>,
+) -> Result<(usize, String), Box<dyn std::error::Error>> {
+    println!("{}", message);
+    for (index, choice) in choices.iter().enumerate() {
+        println!("{} - {}", index, choice);
+    }
+    let mut choice_num_str = String::new();
+    io::stdin().read_line(&mut choice_num_str).unwrap();
+
+    select_item(choice_num_str, &choices)
 }
 
 fn choose_ip(
@@ -263,6 +270,13 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    prop_compose! {
+        fn create_choice_test_vec(length: usize)(index in 0..length, test_vec in any_with::<Vec<String>>(proptest::collection::size_range(length).lift())) -> (usize, Vec<String>) {
+            dbg!(&test_vec);
+            (index, test_vec)
+        }
+    }
+
     proptest! {
         #[test]
         fn test_socket_creation_v4(a: u8, b: u8, c: u8, d: u8, p: u16) {
@@ -290,6 +304,13 @@ mod tests {
             let ip_string = format!("{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}", a, b, c, d, e, f, g, h);
             let url = create_url(IpString::V6(ip_string.clone()), p);
             prop_assert_eq!(format!("http://[{}]:{}", ip_string, p), url);
+        }
+
+        #[test]
+        fn test_choose_number_prop((index, test_vec) in create_choice_test_vec(10)) {
+            if let Ok(result) = select_item(index.to_string(), &test_vec) {
+                assert_eq!((index, test_vec[index].clone()), result);
+            }
         }
     }
 
