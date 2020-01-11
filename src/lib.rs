@@ -312,6 +312,54 @@ mod tests {
                 assert_eq!((index, test_vec[index].clone()), result);
             }
         }
+
+        #[test]
+        fn test_choice_error_creation_u32(a: u32, b: u32) {
+            let error = ChoiceError::new(a, b);
+            prop_assert_eq!(a, error.low);
+            prop_assert_eq!(b, error.high);
+        }
+
+        #[test]
+        fn test_choice_error_display_u32(a: u32, b: u32) {
+            let error = ChoiceError::new(a, b);
+            let display_output = format!("{}", error);
+            prop_assert!(display_output.contains(&a.to_string()));
+            prop_assert!(display_output.contains(&b.to_string()));
+        }
+
+        #[test]
+        fn test_choice_error_debug_u32(a: u32, b: u32) {
+            let error = ChoiceError::new(a, b);
+            let debug_output = format!("{:?}", error);
+            prop_assert!(debug_output.contains(&a.to_string()));
+            prop_assert!(debug_output.contains(&b.to_string()));
+        }
+
+        #[test]
+        fn test_choice_error_str(a in "\\PC*", b in "\\PC*") {
+            let error = ChoiceError::new(&a, &b);
+            prop_assert_eq!(&a, error.low);
+            prop_assert_eq!(&b, error.high);
+        }
+
+        #[test]
+        fn test_choice_error_display_str(a in "\\PC*", b in "\\PC*") {
+            let error = ChoiceError::new(&a, &b);
+            let display_output = format!("{}", error);
+            prop_assert!(display_output.contains(&a));
+            prop_assert!(display_output.contains(&b));
+        }
+
+        #[test]
+        fn test_choice_error_debug_str(a in "\\PC*", b in "\\PC*") {
+            let error = ChoiceError::new(&a, &b);
+            let debug_output = format!("{:?}", error);
+            let debug_a = format!("{:?}", a);
+            let debug_b = format!("{:?}", b);
+            prop_assert!(debug_output.contains(&debug_a));
+            prop_assert!(debug_output.contains(&debug_b));
+        }
     }
 
     #[test]
