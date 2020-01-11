@@ -314,6 +314,26 @@ mod tests {
         }
 
         #[test]
+        fn test_choose_number_index_error((index, test_vec) in create_choice_test_vec(10)) {
+            let fail_index = index + test_vec.len();
+            match select_item(fail_index.to_string(), &test_vec) {
+                Ok(_) => prop_assert!(false),
+                Err(e) => prop_assert_eq!(format!("{}", e), format!("{}", ChoiceError::new(0, test_vec.len()-1))),
+            };
+        }
+
+        #[test]
+        fn test_choose_number_index_parse_error((_, test_vec) in create_choice_test_vec(10), a in "\\PC*") {
+            match select_item(a.clone(), &test_vec) {
+                Ok(_) => match a.trim().parse::<usize>() {
+                    Ok(_) => prop_assert!(true),
+                    Err(_) => prop_assert!(false),
+                },
+                Err(_) => prop_assert!(true),
+            }
+        }
+
+        #[test]
         fn test_choice_error_creation_u32(a: u32, b: u32) {
             let error = ChoiceError::new(a, b);
             prop_assert_eq!(a, error.low);
