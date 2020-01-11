@@ -360,6 +360,27 @@ mod tests {
             prop_assert!(debug_output.contains(&debug_a));
             prop_assert!(debug_output.contains(&debug_b));
         }
+
+        #[test]
+        fn test_networkinterfaceexistanceerror_creation(a in "\\PC*") {
+            let error = NetworkInterfaceExistanceError::new(a.clone());
+            prop_assert_eq!(a, error.interface);
+        }
+
+        #[test]
+        fn test_networkinterfaceexistanceerror_display(a in "\\PC*") {
+            let error = NetworkInterfaceExistanceError::new(a.clone());
+            let display_output = format!("{}", error);
+            prop_assert!(display_output.contains(&a));
+        }
+
+        #[test]
+        fn test_networkinterfaceexistanceerror_debug(a in "\\PC*") {
+            let error = NetworkInterfaceExistanceError::new(a.clone());
+            let debug_output = format!("{:?}", error);
+            let debug_a = format!("{:?}", a);
+            prop_assert!(debug_output.contains(&debug_a));
+        }
     }
 
     #[test]
